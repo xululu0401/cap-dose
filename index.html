@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>瓶盖不是量杯 · 按标签兑药兑肥，看手边量具能不能量准</title>
+<meta name="description" content="按药/肥标签的写法算出这一壶加多少，检查瓶盖、注射器、量杯哪件能量准、偏多少，算几壶、倒多了补多少水、按整格反过来配多少水。">
+<style>
+  :root{
+    --bg:#f3f1ea; --card:#fffdf8; --ink:#2b2a22; --ink2:#55523f; --mut:#827d66;
+    --line:#e3ddc9; --olive:#56702b; --olive2:#eef3e2; --rust:#a4471f; --rust2:#fbece4;
+    --amber:#8a6512; --amber2:#fbf3dc; --green:#2f6b3a; --green2:#e6f2e5;
+    --sh:0 1px 2px rgba(43,42,34,.06),0 6px 18px rgba(43,42,34,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 16px 72px}
+  h1{font-size:30px;line-height:1.25;margin:0 0 6px}
+  .sub{color:var(--ink2);margin:0;font-size:15.5px}
+  .muted{color:var(--mut);font-size:13.5px}
+  .num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+  .hide{display:none !important}
+  button{font:inherit;cursor:pointer}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:13.5px;color:var(--ink2)}
+  .chip[aria-pressed="true"]{background:var(--olive);border-color:var(--olive);color:#fff}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:14px}
+  @media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+  /* 向导 */
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 0 12px;box-shadow:var(--sh);overflow:hidden}
+  .step>header{display:flex;gap:12px;align-items:center;padding:13px 16px;cursor:pointer;user-select:none}
+  .step .no{flex:none;width:30px;height:30px;border-radius:50%;background:var(--olive2);color:var(--olive);font-weight:700;display:flex;align-items:center;justify-content:center}
+  .step.open .no{background:var(--olive);color:#fff}
+  .step .q{font-weight:600;font-size:16px}
+  .step .sum{color:var(--mut);font-size:13.5px;overflow-wrap:anywhere}
+  .step .hd{min-width:0;flex:1}
+  .step .body{padding:2px 16px 16px;display:none}
+  .step.open .body{display:block}
+  .step.bad .no{background:var(--rust);color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(190px,100%),1fr));gap:12px}
+  .f{min-width:0}
+  .f label{display:block;font-size:13.5px;color:var(--ink2);margin-bottom:4px}
+  .f label i{font-style:normal;color:var(--mut);font-size:12.5px;margin-left:4px}
+  .f input,.f select{width:100%;font:15px/1.4 ui-monospace,Menlo,monospace;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+  .f select{font-family:inherit}
+  .f.bad input,.f.bad select{border-color:#c4502c;background:#fff6f2}
+  .f .msg{display:none;font-size:12.5px;color:var(--rust);margin-top:4px;overflow-wrap:anywhere}
+  .f.bad .msg{display:block}
+  .seg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+  .seg button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;font-size:14px;color:var(--ink2)}
+  .seg button[aria-pressed="true"]{border-color:var(--olive);background:var(--olive2);color:var(--olive);font-weight:600}
+  .toolrow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.8fr) minmax(0,.8fr) auto;gap:8px;align-items:end;margin-bottom:8px}
+  .toolrow .f{margin:0}
+  /* 量具行的报错不放在格子下面（会把同一行的其它标签顶歪，目检 05 号图发现），统一放到整行下方 */
+  .toolrow .f .msg{display:none !important}
+  .rowmsg{grid-column:1/-1;font-size:12.5px;color:var(--rust);overflow-wrap:anywhere}
+  .rowmsg:empty{display:none}
+  @media (max-width:520px){
+    .toolrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
+    .toolrow .f:first-child{grid-column:1/-1}
+  }
+  .btn{background:var(--olive);border:1px solid var(--olive);color:#fff;border-radius:9px;padding:9px 14px;font-size:14px}
+  .btn.ghost{background:#fff;color:var(--olive)}
+  .btn.mini{padding:6px 10px;font-size:13px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .next{margin-top:12px}
+  .hint{font-size:13px;color:var(--mut);margin:8px 0 0}
+
+  /* 配药单（票据） */
+  .slip{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:var(--sh);padding:20px 20px 16px;position:relative}
+  .slip:before{content:"";position:absolute;left:0;right:0;top:-1px;height:6px;background:repeating-linear-gradient(90deg,var(--olive) 0 14px,transparent 14px 20px)}
+  .slip h2{font-size:15px;color:var(--mut);margin:4px 0 6px;font-weight:600;letter-spacing:1px}
+  .big{font-size:34px;font-weight:800;line-height:1.2;font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
+  .big small{font-size:17px;font-weight:600;color:var(--ink2);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .verdict{font-size:16px;margin:6px 0 0;overflow-wrap:anywhere}
+  .dash{border:none;border-top:1px dashed var(--line);margin:14px 0}
+  .slip h3{font-size:14px;margin:0 0 8px;color:var(--ink2)}
+  .tools{display:grid;gap:8px}
+  .tool{border:1px solid var(--line);border-radius:10px;padding:9px 11px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+  .tool .nm{font-weight:600;overflow-wrap:anywhere;min-width:0}
+  .tool .tx{grid-column:1/-1;font-size:13.5px;color:var(--ink2);overflow-wrap:anywhere}
+  .tag{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .tag.ok{background:var(--green2);color:var(--green)}
+  .tag.off{background:var(--amber2);color:var(--amber)}
+  .tag.cannot{background:#eee;color:#666}
+  .tag.best{background:var(--olive);color:#fff}
+  .gauge{grid-column:1/-1;height:10px;background:#f1eee3;border-radius:6px;position:relative;overflow:hidden}
+  .gauge i{position:absolute;top:0;bottom:0;background:rgba(86,112,43,.25)}
+  .gauge b{position:absolute;top:-2px;bottom:-2px;width:3px;background:var(--ink)}
+  .gauge u{position:absolute;top:0;bottom:0;width:2px;background:var(--olive);left:50%}
+  .kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;font-size:14.5px}
+  /* 标签列按内容宽、不许被挤成一字一行（375px 目检 21 号图发现「一共要」被竖着排） */
+  .kv span:nth-child(odd){white-space:nowrap}
+  .kv span:nth-child(even){font-family:ui-monospace,Menlo,monospace;text-align:right;overflow-wrap:anywhere;min-width:0}
+  .box{border-radius:10px;padding:10px 12px;font-size:14.5px;margin:10px 0;overflow-wrap:anywhere}
+  .box.bad{background:var(--rust2);color:#7a2f12;border:1px solid #f0cdbb}
+  .box.warn{background:var(--amber2);color:#6a4c0c;border:1px solid #efdfb2}
+  .box.ok{background:var(--green2);color:#24532c;border:1px solid #c9e3c8}
+  .box ul{margin:4px 0 0;padding-left:20px}
+  .acts{display:grid;gap:8px}
+  .act{text-align:left;background:var(--olive2);border:1px solid #cfdcb5;color:#34461a;border-radius:10px;padding:9px 12px;font-size:14px;overflow-wrap:anywhere}
+  .act:hover{border-color:var(--olive)}
+  .exp{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .foot{margin-top:22px;font-size:13.5px;color:var(--mut)}
+  .foot li{margin:3px 0}
+  #saveTag{font-size:12.5px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>瓶盖不是量杯</h1>
+    <p class="sub">标签按 15 升的大喷雾器写，你只兑一小壶 —— 一瓶盖下去可能就是标签浓度的好几倍。照着标签填四步，算出这一壶加多少、手边哪件量具量得准。</p>
+    <div class="chips" id="presets"></div>
+    <p class="muted" id="presetNote"></p>
+  </header>
+
+  <div class="layout">
+    <div id="wizard">
+      <section class="step open" id="step1">
+        <header data-step="1"><div class="no">1</div><div class="hd"><div class="q">标签上是怎么写的？</div><div class="sum" id="sum1"></div></div></header>
+        <div class="body">
+          <div class="seg" id="modeSeg">
+            <button type="button" data-mode="ratio">稀释 N 倍</button>
+            <button type="button" data-mode="perVol">每多少水加多少</button>
+            <button type="button" data-mode="pct">有效成分百分比</button>
+          </div>
+          <div class="grid" id="modeRatio">
+            <div class="f" id="f_N"><label for="N">稀释倍数<i>倍</i></label><input id="N" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_basis"><label for="basis">「N 倍」怎么算</label><select id="basis"><option value="total">按总量（药+水 = N 份）</option><option value="water">按水量（水 = 药的 N 倍）</option></select><div class="msg"></div></div>
+          </div>
+          <div class="grid" id="modePerVol">
+            <div class="f" id="f_perX"><label for="perX">每多少升水<i>L</i></label><input id="perX" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_perY"><label for="perY">加多少<i class="uLab">mL</i></label><input id="perY" inputmode="decimal"><div class="msg"></div></div>
+          </div>
+          <div class="grid" id="modePct">
+            <div class="f" id="f_pctProd"><label for="pctProd">产品有效成分<i>%</i></label><input id="pctProd" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_pctTarget"><label for="pctTarget">要兑到<i>%</i></label><input id="pctTarget" inputmode="decimal"><div class="msg"></div></div>
+          </div>
+          <div class="grid" style="margin-top:12px">
+            <div class="f" id="f_unit"><label for="unit">药是</label><select id="unit"><option value="mL">液体（按 mL 量）</option><option value="g">粉剂（按 g 量）</option></select><div class="msg"></div></div>
+          </div>
+          <p class="hint">标签说法不清楚是「按总量」还是「按水量」时：倍数在几百倍以上两者差不到 0.5%，几十倍以下才要较真。</p>
+          <button type="button" class="btn ghost next" data-go="2">下一步</button>
+        </div>
+      </section>
+
+      <section class="step" id="step2">
+        <header data-step="2"><div class="no">2</div><div class="hd"><div class="q">这一壶兑多少，一共要喷多少？</div><div class="sum" id="sum2"></div></div></header>
+        <div class="body">
+          <div class="grid">
+            <div class="f" id="f_canL"><label for="canL">喷壶/水壶容量<i>L</i></label><input id="canL" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_fillL"><label for="fillL">这一壶兑到<i>L</i></label><input id="fillL" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_pots"><label for="pots">要喷/浇几盆<i>盆，0 = 不算</i></label><input id="pots" inputmode="numeric"><div class="msg"></div></div>
+            <div class="f" id="f_perPot"><label for="perPot">每盆大约用<i>mL</i></label><input id="perPot" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_stock"><label for="stock">这瓶还剩<i class="uLab">mL</i><i>0 = 不算</i></label><input id="stock" inputmode="decimal"><div class="msg"></div></div>
+          </div>
+          <button type="button" class="btn ghost next" data-go="3">下一步</button>
+        </div>
+      </section>
+
+      <section class="step" id="step3">
+        <header data-step="3"><div class="no">3</div><div class="hd"><div class="q">你手边有哪几样能量的？</div><div class="sum" id="sum3"></div></div></header>
+        <div class="body">
+          <p class="hint" style="margin-top:0">「一满多少」可以拿注射器往里打水量一次；「最小能分辨」是你凭眼睛能稳定量出的最小一份（瓶盖大概只能分到 1/4 盖）。</p>
+          <div id="toolRows"></div>
+          <div class="f" id="f_tools"><div class="msg"></div></div>
+          <button type="button" class="btn ghost mini" id="addTool">+ 再加一件</button>
+          <div class="grid" style="margin-top:12px">
+            <div class="f" id="f_tol"><label for="tol">能接受的偏差<i>%</i></label><input id="tol" inputmode="decimal"><div class="msg"></div></div>
+          </div>
+          <button type="button" class="btn ghost next" data-go="4">下一步</button>
+        </div>
+      </section>
+
+      <section class="step" id="step4">
+        <header data-step="4"><div class="no">4</div><div class="hd"><div class="q">刚才是不是已经倒了？</div><div class="sum" id="sum4"></div></div></header>
+        <div class="body">
+          <div class="grid">
+            <div class="f" id="f_pouredK"><label for="pouredK">已经倒了<i>个，0 = 还没倒</i></label><input id="pouredK" inputmode="decimal"><div class="msg"></div></div>
+            <div class="f" id="f_pouredJ"><label for="pouredJ">用的是</label><select id="pouredJ"></select><div class="msg"></div></div>
+          </div>
+          <p class="hint">倒多了别倒掉：按比例补水就能救回来，前提是壶装得下。</p>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <div class="slip" id="slip">
+        <h2>配药单 <span id="saveTag"></span></h2>
+        <div id="errBox" class="box bad hide"></div>
+        <div id="okPart">
+          <div class="muted" id="srcLine"></div>
+          <div class="big" id="bigDose"></div>
+          <div class="verdict" id="verdict"></div>
+          <hr class="dash">
+          <h3>用哪件量</h3>
+          <div class="tools" id="toolCards"></div>
+          <hr class="dash">
+          <div id="pouredBlock"><h3>刚才倒的</h3><div id="pouredBox" class="box"></div><hr class="dash"></div>
+          <div id="cansBlock"><h3>一共要几壶</h3><div class="kv" id="cansKv"></div><hr class="dash"></div>
+          <h3>按整格配（不用估半格）</h3>
+          <div id="wholeLine" class="verdict" style="font-size:14.5px"></div>
+          <div id="warnBox" class="box warn hide"></div>
+          <div id="actsBlock"><hr class="dash"><h3>点一下就改到上面的输入</h3><div class="acts" id="acts"></div></div>
+        </div>
+        <hr class="dash">
+        <div class="exp">
+          <button type="button" class="btn mini" id="dlCsv">下载 CSV</button>
+          <button type="button" class="btn mini" id="dlMd">下载 MD</button>
+          <button type="button" class="btn mini" id="dlPng">下载配药单 PNG</button>
+          <button type="button" class="btn mini ghost" id="dlJson">备份 JSON</button>
+          <button type="button" class="btn mini ghost" id="impJson">从 JSON 恢复</button>
+          <button type="button" class="btn mini ghost" id="reset">恢复默认</button>
+          <input type="file" id="impFile" accept="application/json,.json" class="hide">
+        </div>
+      </div>
+      <ul class="foot">
+        <li>默认场景是虚构示例：「某药 1000 倍」、瓶盖 8 mL。你的瓶盖请自己量一次。</li>
+        <li>本页只做按标签的算术：不推荐浓度，不判断安全、药害、安全间隔期。浓度以产品标签为准。</li>
+        <li>量具按「最小能分辨」四舍五入，是对手量的简化，不是量具精度标定；粉剂按体积可加处理。</li>
+        <li>输入只存在这台设备的浏览器里（localStorage），不上传。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<script src="./core.js"></script>
+<script src="./ui.js"></script>
+</body>
+</html>
